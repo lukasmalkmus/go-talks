@@ -1,0 +1,134 @@
+# Working with SQL Databases in Go
+AxiTalk Sessions
+22 Feb 2022
+
+Lukas Malkmus
+Software Engineer, Axiom
+lukas@axiom.co
+@lukasmalkmus
+
+## database/sql {#sql}
+
+* Built-in database package
+* Database agnostic
+	* Conforms to the lowest common denominator
+	* No support for Postgres-specific features (or any vendor specific features)
+* Database connection powered by drivers
+
+## jmoiron/sqlx {#sqlx}
+
+* General purpose extensions to `database/sql`
+* Types are superset of `database/sql` types
+	* Trivial to integrate with existing code
+* Concepts:
+	* Marshal rows into structs, maps and slices
+	* Support for named parameters
+	* `Get()` and `Select()` to query directly into structs and slices
+
+## lib/pq {#pq}
+
+* Early Postgres driver and toolkit
+	* Supports `LISTEN`/`NOTIFY`
+* Fallen behind in development
+* No longer actively maintained
+
+## jackc/pgx {#pgx}
+
+* Performant Postgres driver and toolkit
+	* Supports binary format (`database/sql` transmits non-standard types as text)
+	* Supports `LISTEN`/`NOTIFY`
+* Opinionated about not offering any ORM-like features
+	* Basic query interface
+	* `Scan()` into structs manually
+	* Improvements through third-party packages ([scany](https://github.com/georgysavva/scany))
+
+## Queries as strings {#sql-drawbacks}
+
+.code _code/2022-02-22-sql.go /START SQL_DRAWBACKS_1 OMIT/,/END SQL_DRAWBACKS_1 OMIT/
+
+* Fine for simple queries
+* No confidence that queries actually work as the compiler just sees a string
+	* Need for exhaustive test coverage to verify queries
+* Gets messy fast when trying to build more complex applications
+
+.code _code/2022-02-22-sql.go /START SQL_DRAWBACKS_2 OMIT/,/END SQL_DRAWBACKS_2 OMIT/
+
+* A query builder comes in handy: [Masterminds/squirrel](https://github.com/Masterminds/squirrel)*
+
+.code _code/2022-02-22-sql.go /START SQL_DRAWBACKS_3 OMIT/,/END SQL_DRAWBACKS_3 OMIT/
+
+	* Considered complete and not actively maintained
+
+## Migrations {#migrations}
+
+* [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
+* [rubenv/sql-migrate](https://github.com/rubenv/sql-migrate)
+* [pressly/goose](https://github.com/pressly/goose)
+
+All packages can be used as a standalone application or as a package.
+
+## ORMs for the rescue (?) {#orms-rescue}
+
+.code _code/2022-02-22-sql.go /START ORMS_FOR_THE_RESCUE OMIT/,/END ORMS_FOR_THE_RESCUE OMIT/
+
+* As queries are built lazily, an ORM can intelligently order the statements
+* Without generics, Go's type system can't offer much
+	* `Model()`, `Relation()` and `Where()` return a `*Query`
+	* The compiler can't do much more than when concatenating strings together
+* Like with strings, a lot of mistakes will only be caught at runtime
+* Mismatch between the raw SQL most people are used to and the ORMs query builder syntax
+
+## ORMs {#orms}
+
+* [go-pg/pg](https://github.com/go-pg/pg)
+	* Strict Postgres ORM
+	* Own driver
+	* Deprecated in favor of `uptrace/bun`
+* [uptrace/bun](https://github.com/uptrace/bun)
+	* General purpose ORM
+	* Built on `database/sql`
+* [gorm](https://gorm.io)
+	* General purpose ORM
+* [ent](https://entgo.io)
+	* General purpose ORM
+
+## kyleconroy/sqlc {#sqlc}
+
+* Write `*.sql` files that contain table definitions along with queries
+	* Annotated with name and return type in a magic comment
+* Compiled into `*.go` files
+* Support for `jackc/pgx`
+* Uses Postgres' query parser: [pganalyze/pg_query_go](https://github.com/pganalyze/pg_query_go)
+* Queries can't take an arbitrary number of parameters
+
+## Write SQL, Get Go {#write-sql-get-go}
+
+.code _code/2022-02-22-sql.sql
+
+* sqlc generate
+
+.code _code/2022-02-22-sql.go /START SQLC OMIT/,/END SQLC OMIT/
+
+## Ent {#ent}
+
+* Schemas as code
+* Not reflection based!
+	* Uses code generation
+* Hooks for interfering with the query builder result and use e.g. raw SQL
+* Overall very thoughtful written
+
+.code _code/2022-02-22-sql.go /START ENT OMIT/,/END ENT OMIT/
+
+## Future {#future}
+
+* Go Generics are about to land
+	* New major releases for ORMs and driver/toolkit packages
+	* Generics will replace code generation
+* `ent` bridges the gap between current ORMs and the generic-less Go world
+
+## Conclusion {#conclusion}
+
+## References {#references}
+
+* All the mentioned packages and their respective repositories
+* Especially @brandur's [great article](https://brandur.org/sqlc) on `sqlc`
